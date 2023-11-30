@@ -19,6 +19,12 @@ default_options = () if not hasattr(BaseCommand, 'option_list') \
     else BaseCommand.option_list
 
 
+replacements = {
+    '\n': '<br translate="no">',
+    '#': '&#35;',
+}
+
+
 class Command(BaseCommand):
     help = ('autotranslate all the message files that have been generated '
             'using the `makemessages` command.')
@@ -168,18 +174,24 @@ def convert_text(msgid):
     %d       -> <span translate="no">%d</span>
     \n       -> <br translate="no">  (keep newlines)
     """
-    return re.sub(
+    text = re.sub(
         r'(%(\(\w+\))?([sd]))',
         r'<span translate="no">\1</span>',
         msgid).replace('\n', '<br translate="no">')
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    return text
 
 
 def restore_text(translation):
     """Restore text to original form."""
-    return re.sub(
+    text = re.sub(
         r'<span translate="no">(%(\(\w+\))?([sd]))</span>',
         r'\1',
-        translation).replace('<br translate="no">', '\n')
+        translation)
+    for k, v in replacements.items():
+        text = text.replace(v, k)
+    return text
 
 
 def fix_translation(msgid, translation):

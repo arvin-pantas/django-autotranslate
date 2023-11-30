@@ -36,6 +36,10 @@ class ConvertTestCase(unittest.TestCase):
         self.assertEqual('foo<br translate="no"><br>bar',
                          convert_text('foo\n<br>bar'))
 
+    def test_hash(self):
+        self.assertEqual('&#35;&#35;&#35; foo bar',
+                         convert_text('### foo bar'))
+
 
 class RestoreTestCase(unittest.TestCase):
     def test_restore_placeholders(self):
@@ -48,6 +52,10 @@ class RestoreTestCase(unittest.TestCase):
                          restore_text('baz <span translate="no">%s</span> zilot'))
         self.assertEqual('baz %s%s zilot',
                          restore_text('baz <span translate="no">%s</span><span translate="no">%s</span> zilot'))
+
+    def test_hash(self):
+        self.assertEqual('### foo bar',
+                         restore_text('&#35;&#35;&#35; foo bar'))
 
 
 class POFileTestCase(unittest.TestCase):
