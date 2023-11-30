@@ -8,33 +8,46 @@ except ImportError:
 
 import polib
 
-from autotranslate.management.commands.translate_messages import humanize_placeholders, restore_placeholders, Command
+from autotranslate.management.commands.translate_messages import convert_text, restore_text, Command
 
 
-class HumanizeTestCase(unittest.TestCase):
+class ConvertTestCase(unittest.TestCase):
     def test_named_placeholders(self):
-        self.assertEqual('foo __item__ bar', humanize_placeholders('foo %(item)s bar'))
-        self.assertEqual('foo __item_name__ bar', humanize_placeholders('foo %(item_name)s bar'))
+        self.assertEqual('foo <span translate="no">%(item)s</span> bar', convert_text('foo %(item)s bar'))
+        self.assertEqual('foo <span translate="no">%(item_name)s</span> bar', convert_text('foo %(item_name)s bar'))
 
-        self.assertEqual('foo % (item)s bar', humanize_placeholders('foo % (item)s bar'))
+        self.assertEqual('foo % (item)s bar', convert_text('foo % (item)s bar'))
 
     def test_positional_placeholders(self):
-        self.assertEqual('foo __item__ bar', humanize_placeholders('foo %s bar'))
-        self.assertEqual('foo __number__ bar', humanize_placeholders('foo %d bar'))
-        self.assertEqual('foo __item__ bar __item__', humanize_placeholders('foo %s bar %s'))
-        self.assertEqual('foo __item____item__', humanize_placeholders('foo %s%s'))
+        self.assertEqual('foo <span translate="no">%s</span> bar',
+                         convert_text('foo %s bar'))
+        self.assertEqual('foo <span translate="no">%d</span> bar',
+                         convert_text('foo %d bar'))
+        self.assertEqual('foo <span translate="no">%s</span> bar <span translate="no">%s</span>',
+                         convert_text('foo %s bar %s'))
+        self.assertEqual('foo <span translate="no">%s</span><span translate="no">%s</span>',
+                         convert_text('foo %s%s'))
+
+    def test_newline(self):
+        self.assertEqual('foo<br translate="no">bar',
+                         convert_text('foo\nbar'))
+        self.assertEqual('foo<br translate="no"><br translate="no">bar',
+                         convert_text('foo\n\nbar'))
+        self.assertEqual('foo<br translate="no"><br>bar',
+                         convert_text('foo\n<br>bar'))
 
 
 class RestoreTestCase(unittest.TestCase):
     def test_restore_placeholders(self):
-        self.assertEqual('baz %(item)s zilot',
-                         restore_placeholders('foo %(item)s bar', 'baz __over__ zilot'))
+        # should not be translated to over
+        # self.assertEqual('baz %(item)s zilot',
+        #                  restore_text('baz <span translate="no">over</span> zilot'))
         self.assertEqual('baz %(item_name)s zilot',
-                         restore_placeholders('foo %(item_name)s bar', 'baz __item_name__ zilot'))
+                         restore_text('baz <span translate="no">%(item_name)s</span> zilot'))
         self.assertEqual('baz %s zilot',
-                         restore_placeholders('foo %s bar', 'baz __item__ zilot'))
+                         restore_text('baz <span translate="no">%s</span> zilot'))
         self.assertEqual('baz %s%s zilot',
-                         restore_placeholders('foo %s%s bar', 'baz __item____item__ zilot'))
+                         restore_text('baz <span translate="no">%s</span><span translate="no">%s</span> zilot'))
 
 
 class POFileTestCase(unittest.TestCase):
@@ -43,7 +56,8 @@ class POFileTestCase(unittest.TestCase):
         cmd.set_options(**dict(
                 locale='ia',
                 set_fuzzy=False,
-                skip_translated=False
+                skip_translated=False,
+                source_language='en',
         ))
         self.cmd = cmd
         self.po = polib.pofile(os.path.join(os.path.dirname(__file__), 'data/django.po'))

@@ -117,9 +117,9 @@ class Command(BaseCommand):
         for index, entry in enumerate(po):
             if not self.need_translate(entry):
                 continue
-            strings.append(humanize_placeholders(entry.msgid))
+            strings.append(convert_text(entry.msgid))
             if entry.msgid_plural:
-                strings.append(humanize_placeholders(entry.msgid_plural))
+                strings.append(convert_text(entry.msgid_plural))
         return strings
 
     def update_translations(self, entries, translated_strings):
@@ -159,27 +159,27 @@ class Command(BaseCommand):
                 entry.flags.append('fuzzy')
 
 
-def humanize_placeholders(msgid):
-    """Convert placeholders to the (google translate) service friendly form.
+def convert_text(msgid):
+    """
+    Convert text to (google translate) service friendly form.
 
-    %(name)s -> __name__
-    %s       -> __item__
-    %d       -> __number__
+    %(name)s -> <span translate="no">%(name)s</span>
+    %s       -> <span translate="no">%s</span>
+    %d       -> <span translate="no">%d</span>
+    \n       -> <br translate="no">  (keep newlines)
     """
     return re.sub(
-        r'%(?:\((\w+)\))?([sd])',
-        lambda match: r'__{0}__'.format(
-            match.group(1).lower() if match.group(1) else 'number' if match.group(2) == 'd' else 'item'),
-        msgid)
+        r'(%(\(\w+\))?([sd]))',
+        r'<span translate="no">\1</span>',
+        msgid).replace('\n', '<br translate="no">')
 
 
-def restore_placeholders(msgid, translation):
-    """Restore placeholders in the translated message."""
-    placehoders = re.findall(r'(\s*)(%(?:\(\w+\))?[sd])(\s*)', msgid)
+def restore_text(translation):
+    """Restore text to original form."""
     return re.sub(
-        r'(\s*)(__[\w]+?__)(\s*)',
-        lambda matches: '{0}{1}{2}'.format(placehoders[0][0], placehoders[0][1], placehoders.pop(0)[2]),
-        translation)
+        r'<span translate="no">(%(\(\w+\))?([sd]))</span>',
+        r'\1',
+        translation).replace('<br translate="no">', '\n')
 
 
 def fix_translation(msgid, translation):
@@ -193,5 +193,5 @@ def fix_translation(msgid, translation):
         translation += u'\n'
 
     # Remove spaces that have been placed between %(id) tags
-    translation = restore_placeholders(msgid, translation)
+    translation = restore_text(translation)
     return translation
