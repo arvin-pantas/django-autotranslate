@@ -36,6 +36,28 @@ class ConvertTestCase(unittest.TestCase):
         self.assertEqual('foo<br translate="no"><br>bar',
                          convert_text('foo\n<br>bar'))
 
+    def test_html_placeholders(self):
+        # should not replace variable within html attributes
+        self.assertEqual('foo <a href="%(url)s"><span translate="no">%(link)s</span></a> bar',
+                         convert_text('foo <a href="%(url)s">%(link)s</a> bar'))
+        self.assertEqual('foo <img src="%(url)s" title="%(title)s"> bar',
+                         convert_text('foo <img src="%(url)s" title="%(title)s"> bar'))
+
+        # should not touch other types
+        self.assertEqual('foo <!-- %(comment)s\nsecond line --> bar',
+                         convert_text('foo <!-- %(comment)s\nsecond line --> bar'))
+        self.assertEqual('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">',
+                         convert_text('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">'))
+        self.assertEqual('&gt;&#62;&#x3E;', convert_text('&gt;&#62;&#x3E;'))
+        self.assertEqual('<p><a class="link" href="#main">tag soup</p></a>',
+                         convert_text('<p><a class=link href=#main>tag soup</p ></a>'))
+        self.assertEqual('<?xml version="1.0"?>',
+                         convert_text('<?xml version="1.0"?>'))
+
+        # casing might change but no big deal
+        self.assertEqual('foo <img src="%(url)s"> bar',
+                         convert_text('foo <img SRC="%(url)s"> bar'))
+
 
 class RestoreTestCase(unittest.TestCase):
     def test_restore_placeholders(self):
@@ -48,6 +70,12 @@ class RestoreTestCase(unittest.TestCase):
                          restore_text('baz <span translate="no">%s</span> zilot'))
         self.assertEqual('baz %s%s zilot',
                          restore_text('baz <span translate="no">%s</span><span translate="no">%s</span> zilot'))
+
+    def test_html_placeholders(self):
+        self.assertEqual('foo <a href="%(url)s">%(link)s</a> bar',
+                         restore_text('foo <a href="%(url)s"><span translate="no">%(link)s</span></a> bar'))
+        self.assertEqual('foo <img src="%(url)s" title="%(title)s"> bar',
+                         restore_text('foo <img src="%(url)s" title="%(title)s"> bar'))
 
 
 class POFileTestCase(unittest.TestCase):

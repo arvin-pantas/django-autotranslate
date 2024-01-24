@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from html.parser import HTMLParser
 from optparse import make_option
 
 import polib
@@ -17,6 +18,47 @@ logger = logging.getLogger(__name__)
 # https://github.com/django/django/blob/1.9/django/core/management/base.py#L210
 default_options = () if not hasattr(BaseCommand, 'option_list') \
     else BaseCommand.option_list
+
+
+class HTMLTranslator(HTMLParser):
+    """Convert text to google translate friendly-form excluding html attributes."""
+
+    def __init__(self, convert_charrefs=False):
+        """We do not want to convert charrefs."""
+        super().__init__(convert_charrefs=convert_charrefs)
+
+    def convert(self, data):
+        self.converted = ''
+        self.feed(data)
+        self.close()
+        return self.converted
+
+    def handle_starttag(self, tag, attrs):
+        self.converted += f"<{tag}"
+        for attr_name, attr_value in attrs:
+            self.converted += f' {attr_name}="{attr_value}"'
+        self.converted += ">"
+
+    def handle_endtag(self, tag):
+        self.converted += f"</{tag}>"
+
+    def handle_charref(self, name):
+        self.converted += f"&#{name};"
+
+    def handle_entityref(self, name):
+        self.converted += f"&{name};"
+
+    def handle_data(self, data):
+        self.converted += _convert_text(data)
+
+    def handle_comment(self, data):
+        self.converted += f"<!--{data}-->"
+
+    def handle_decl(self, data):
+        self.converted += f"<!{data}>"
+
+    def handle_pi(self, data):
+        self.converted += f"<?{data}>"
 
 
 class Command(BaseCommand):
@@ -161,12 +203,24 @@ class Command(BaseCommand):
 
 def convert_text(msgid):
     """
-    Convert text to (google translate) service friendly form.
+    Convert html text to (google translate) service friendly form.
+    """
+    translator = HTMLTranslator()
+    return translator.convert(msgid)
+
+
+def _convert_text(msgid):
+    """
+    Convert plain text to (google translate) service friendly form.
 
     %(name)s -> <span translate="no">%(name)s</span>
     %s       -> <span translate="no">%s</span>
     %d       -> <span translate="no">%d</span>
     \n       -> <br translate="no">  (keep newlines)
+
+    This will convert variables within attributes for html.
+
+        <a href="{{ var }}">text</a>
     """
     return re.sub(
         r'(%(\(\w+\))?([sd]))',
